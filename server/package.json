@@ -77,7 +77,6 @@
   },
   "devDependencies": {},
   "scripts": {
-    "start": "ng serve --proxy-config proxy.conf.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
