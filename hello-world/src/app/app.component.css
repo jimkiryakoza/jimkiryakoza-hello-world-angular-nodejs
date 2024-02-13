@@ -1,0 +1,5 @@
+.extracted-text {
+    width: 100%; /* Take the full width of the container */
+    height: 800px; /* Set a fixed height */
+    resize: none; /* Optional: Disallow resizing */
+}

@@ -5,6 +5,7 @@ const port = 3000;
 const cors = require('cors');
 const pdfParse = require('pdf-parse');
 
+
 const corsOptions = {
     origin: 'https://shiny-fortnight-jjr5jp7jjjvxhqvq4-4200.app.github.dev'
   };
@@ -19,7 +20,9 @@ app.post('/convert', async (req, res) => {
         const pdfUrl = req.body.url;
         const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
         const response = await fetch(pdfUrl);
-        const data = await response.buffer();
+        const arrayBuffer = await response.arrayBuffer();
+        // Convert ArrayBuffer to Buffer
+        const data = Buffer.from(arrayBuffer);
         
         pdfParse(data).then(function(data) {
             res.send({ text: data.text });
