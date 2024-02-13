@@ -3,8 +3,8 @@ import { RouterOutlet } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 
-interface ConversionResponse {
-  uppercaseText: string;
+interface PdfTextResponse {
+  text: string;
 }
 
 @Component({
@@ -15,16 +15,19 @@ interface ConversionResponse {
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'hello-jim';
-  inputText = ''; 
-  uppercaseText = ''; 
+  title = 'PDF Text Extractor';
+  pdfUrl = ''; // The URL of the PDF to extract text from
+  extractedText = ''; // The text extracted from the PDF
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) { }
 
-  convertToUppercase() {
-    this.http.post<ConversionResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/convert', { text: this.inputText })
-        .subscribe(response => {
-            this.uppercaseText = response.uppercaseText; // Now valid 
-        });
+  extractPdfText() {
+    this.http.post<PdfTextResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/convert', { url: this.pdfUrl })
+      .subscribe(response => {
+        this.extractedText = response.text;
+      }, error => {
+        console.error('Error extracting PDF text:', error);
+      });
   }
+
 }
