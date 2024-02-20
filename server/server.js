@@ -14,8 +14,8 @@ const corsOptions = {
   
 app.use(bodyParser.json());
 
-app.post('/convert', async (req, res) => {
-    console.log("Incoming request to /convert endpoint");
+app.post('/extract-pdf-text', async (req, res) => {
+    console.log("Incoming request to /extract-pdf-text");
     try {
         const pdfUrl = req.body.url;
         const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));

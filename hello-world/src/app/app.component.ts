@@ -22,7 +22,7 @@ export class AppComponent {
   constructor(private http: HttpClient) { }
 
   extractPdfText() {
-    this.http.post<PdfTextResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/convert', { url: this.pdfUrl })
+    this.http.post<PdfTextResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/extract-pdf-text', { url: this.pdfUrl })
       .subscribe(response => {
         this.extractedText = response.text;
       }, error => {
