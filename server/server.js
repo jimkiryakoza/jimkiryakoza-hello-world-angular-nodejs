@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const cors = require('cors');
-const pdfParse = require('pdf-parse');
+const PDFParser = require('pdf2json'); // Import pdf2json
 
 // Setup CORS options
 const corsOptions = {
@@ -18,17 +18,23 @@ app.post('/extract-pdf-text', async (req, res) => {
     console.log("Incoming request to /extract-pdf-text");
     try {
         const pdfUrl = req.body.url;
-        // Use dynamic import for 'node-fetch'
-        const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+        const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
         const response = await fetch(pdfUrl);
 
-        // In modern versions of node-fetch, use response.buffer() to get a Buffer directly
-        const data = await response.buffer();
-        
-        pdfParse(data).then(function(data) {
-            res.send({ text: data.text });
+        // Use response.arrayBuffer() and convert it to Buffer
+        const arrayBuffer = await response.arrayBuffer();
+        const data = Buffer.from(arrayBuffer);
+
+        const pdfParser = new PDFParser(this,1); // Create a new instance of PDFParser
+        pdfParser.on("pdfParser_dataError", errData => console.error(errData.parserError));
+        pdfParser.on("pdfParser_dataReady", pdfData => {
+            // Assuming you want to extract text and send it in the response
+            // You might need to adjust how you extract and send text based on pdf2json's output structure
+            const pdfText =  pdfParser.getRawTextContent();
+            res.send({ text: pdfText });
         });
-    } catch(error) {
+        pdfParser.parseBuffer(data); // Parse the PDF buffer
+    } catch (error) {
         console.error("Error processing the request:", error);
         res.status(500).send("Something went wrong");
     }
