@@ -50,14 +50,14 @@ app.post('/extract-pdf-text', async (req, res) => {
                 const x = parseFloat(transform[4]).toFixed(2); // Format X to two decimals
                 const y = parseFloat(transform[5]).toFixed(2); // Format Y to two decimals
 
-                extractedText += `${i},${y},${x},"${item.str}" \n`;
-
                 // Create an object for each text item and push it to the array
                 extractedTextItems.push({
                     page: i,
                     x: x,
                     y: y,
-                    text: item.str
+                    text: item.str,
+                    line: 0,
+                    column: 0
                 });
             });
         }
@@ -65,8 +65,8 @@ app.post('/extract-pdf-text', async (req, res) => {
         let combinedLines = [];
         combinedLines = combineLines(extractedTextItems);
         extractedText = '';
-        combinedLines.forEach(line => {
-            extractedText += `${line.page},${line.y},${line.x},"${line.text}" \n`;
+        combinedLines.forEach(pdfLine => {
+            extractedText += `Page: ${pdfLine.page} Y: ${pdfLine.y}  X: ${pdfLine.x} Line: ${pdfLine.line}, Column: ${pdfLine.column}, Text: "${pdfLine.text}" \n`;
         });
 
         res.json({ text: extractedText }); // Return as JSON
@@ -77,59 +77,37 @@ app.post('/extract-pdf-text', async (req, res) => {
     }
 });
 
-/**
- * Combines text items based on their page and y-coordinate, concatenating text from items with the same key.
- *  
- * This function iterates over `extractedTextItems`, combines text from items with the same `page` and `y` coordinates,
- * and returns an array of combined lines. Each line in the returned array includes `page`, `x`, `y`, and `text` properties.
- *  
- * @param {Array.<{page: number, x: number, y: number, text: string}>} extractedTextItems - An array of objects representing extracted text items. Each object must have `page`, `x`, `y`, and `text` properties.
- * @returns {Array.<{page: number, x: number, y: number, text: string}>} An array of combined lines, where each line includes `page`, `x`, `y`, and `text` properties.
- *  
- * @example
- * const extractedTextItems = [
- *   { page:  1, x:  10, y:  20, text: "Hello" },
- *   { page:  1, x:  10, y:  20, text: " world" },
- *   { page:  2, x:  30, y:  40, text: "How are you?" }
- * ];
- * const combinedLines = combineLines(extractedTextItems);
- * console.log(combinedLines);
- * // Output: [
- * //   { page:  1, x:  10, y:  20, text: "Hello world" },
- * //   { page:  2, x:  30, y:  40, text: "How are you?" }
- * // ]
- */
 function combineLines(extractedTextItems) {
 
-    const multiKeyMap = new Map();
-
-    extractedTextItems.forEach(line => {
-        const combinedKey = `${line.page}:${line.y}`;
-        let combinedText = line.text;
-        if (multiKeyMap.has(combinedKey)) {
-            combinedText = multiKeyMap.get(combinedKey).text;
-            if ((line.page == 5) && (line.y == 642.64)) {
-                console.log('Before: ' + combinedText);
-            }
-            combinedText = combinedText + line.text;
-        }
-
-        multiKeyMap.set(combinedKey, {
-            page: line.page,
-            x: line.x,
-            y: line.y,
-            text: combinedText
-        });
-    });
-
     let combinedLines = [];
-    multiKeyMap.forEach(line => {
-        combinedLines.push({
-            page: line.page,
-            x: line.x,
-            y: line.y,
-            text: line.text
-        });
+    let combinedLine = extractedTextItems[0].text;
+    let ii = 1;
+
+    for (ii = 1; ii < extractedTextItems.length; ii++) {
+        if ((extractedTextItems[ii - 1].page == extractedTextItems[ii].page)
+            && (extractedTextItems[ii - 1].y == extractedTextItems[ii].y)) {
+            combinedLine += extractedTextItems[ii].text;
+
+        } else {
+            combinedLines.push({
+                page: extractedTextItems[ii - 1].page,
+                y: extractedTextItems[ii - 1].y,
+                x: extractedTextItems[ii - 1].x,
+                text: combinedLine,
+                line: 0,
+                column: 0
+            });
+            combinedLine = extractedTextItems[ii].text;
+        }
+    }
+
+    combinedLines.push({
+        page: extractedTextItems[ii - 1].page,
+        y: extractedTextItems[ii - 1].y,
+        x: extractedTextItems[ii - 1].x,
+        text: combinedLine,
+        line: 0,
+        column: 0
     });
 
     return combinedLines;
