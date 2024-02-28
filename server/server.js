@@ -64,6 +64,7 @@ app.post('/extract-pdf-text', async (req, res) => {
 
         let combinedLines = [];
         combinedLines = combineLines(extractedTextItems);
+        setColumns(combinedLines, 'US 9, 195,518 B1');
         extractedText = '';
         combinedLines.forEach(pdfLine => {
             extractedText += `Page: ${pdfLine.page} Y: ${pdfLine.y}  X: ${pdfLine.x} Line: ${pdfLine.line}, Column: ${pdfLine.column}, Text: "${pdfLine.text}" \n`;
@@ -76,6 +77,36 @@ app.post('/extract-pdf-text', async (req, res) => {
         res.status(500).send('Error extracting text from PDF');
     }
 });
+
+function setColumns(combinedLines, descriptionSeparator) {
+    // Skip to the description    
+    let descriptionStart = 0;
+    for (var ii = 0; ii < combinedLines.length; ii++) {
+        if (combinedLines[ii].text == descriptionSeparator) {
+            descriptionStart = ii;
+            break;
+        }
+    }
+
+    let pageCol = 1;
+    let docCol = 1;
+    for (var ii = descriptionStart + 1; ii < combinedLines.length; ii++) {
+        if (combinedLines[ii].page == combinedLines[ii - 1].page) {
+            if (parseFloat(combinedLines[ii].y) > parseFloat(combinedLines[ii - 1].y)) {
+                pageCol++;
+                if ((pageCol == 1) || (pageCol == 3)) {
+                    docCol++;
+                }
+            }
+            if ((pageCol == 1) || (pageCol == 3)) {
+                combinedLines[ii].column = docCol;
+            }
+        } else {
+            pageCol = 1;
+            docCol++;
+        }
+    }
+}
 
 function combineLines(extractedTextItems) {
 
