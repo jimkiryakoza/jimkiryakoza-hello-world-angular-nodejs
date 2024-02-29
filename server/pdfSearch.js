@@ -1,4 +1,32 @@
 /**
+ * Extracts the document name from a list of text items.
+ * @param {Array} extractedTextItems - An array of objects with text items.
+ * @returns {string} The document name found after 'Patent No.:'.
+ */
+function extractDocumentName(extractedTextItems) {
+    let document = '';
+    for (let ii = 0; ii < extractedTextItems.length; ii++) {
+        if (extractedTextItems[ii].text.includes('Patent No.:')) {
+            document = extractedTextItems[ii + 2].text;
+            break;
+        }
+    }
+    return document;
+}
+
+/**
+ * Creates a search string from PDF lines.
+ * @param {Array} pdfLines - An array of objects with PDF lines.
+ * @returns {string} A concatenated string of PDF lines with column and line information.
+ */
+function createSearchString(pdfLines) {
+    let searchString = pdfLines.map(item =>
+        `{{${item.column}:${item.line}}}${item.text}`
+    ).join();
+    return searchString;
+}
+
+/**
  * Assigns line numbers to combinedLines based on their y-coordinate and column value.
  * This function iterates through combinedLines, incrementing the line number for each line
  * that has a column value not equal to 0 and whose y-coordinate is less than 712.00.
@@ -36,32 +64,35 @@ function setLineNumbers(combinedLines) {
 function setColumns(combinedLines, descriptionSeparator) {
     // Find the start of the description
     let descriptionStart = combinedLines.findIndex(line => line.text === descriptionSeparator);
+    console.log('descriptionStart: ' + descriptionStart);
 
     let pageColumn = 1;
     let documentColumn = 1;
 
     for (let i = descriptionStart + 1; i < combinedLines.length; i++) {
-        if (combinedLines[i].page === combinedLines[i - 1].page) {
-            const currentY = parseFloat(combinedLines[i].y);
-            const previousY = parseFloat(combinedLines[i - 1].y);
+        // Check if i - 1 is a valid index before accessing combinedLines[i - 1]
+        if (i - 1 >= 0) {
+            if (combinedLines[i].page === combinedLines[i - 1].page) {
+                const currentY = parseFloat(combinedLines[i].y);
+                const previousY = parseFloat(combinedLines[i - 1].y);
 
-            if (currentY > previousY) {
-                pageColumn++;
-                if (pageColumn === 1 || pageColumn === 3) {
-                    documentColumn++;
+                if (currentY > previousY) {
+                    pageColumn++;
+                    if (pageColumn === 1 || pageColumn === 3) {
+                        documentColumn++;
+                    }
                 }
-            }
 
-            if (pageColumn === 1 || pageColumn === 3) {
-                combinedLines[i].column = documentColumn;
+                if (pageColumn === 1 || pageColumn === 3) {
+                    combinedLines[i].column = documentColumn;
+                }
+            } else {
+                pageColumn = 1;
+                documentColumn++;
             }
-        } else {
-            pageColumn = 1;
-            documentColumn++;
         }
     }
 }
-
 /**
  * Combines text lines based on their page and y-coordinate to form a single line for each unique key.
  *
@@ -107,4 +138,4 @@ function combineLines(extractedTextItems) {
     return combinedLines;
 }
 
-module.exports = { combineLines, setColumns, setLineNumbers }
+module.exports = { combineLines, setColumns, setLineNumbers, createSearchString, extractDocumentName }

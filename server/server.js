@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const port = 3000; // Example port
 const cors = require('cors');
-const { combineLines, setColumns, setLineNumbers } = require('./pdfSearch');
+const { combineLines, setColumns, setLineNumbers, createSearchString, extractDocumentName } = require('./pdfSearch');
 
 // Setup CORS options
 const corsOptions = {
@@ -43,7 +43,6 @@ app.post('/extract-pdf-text', async (req, res) => {
 
         // Initializes variables for processing the PDF
         const numPages = pdfDocument.numPages;
-        let extractedText = '';
         let extractedTextItems = []; // Array to store extracted text items
 
         // Iterates over each page of the PDF to extract text
@@ -70,21 +69,30 @@ app.post('/extract-pdf-text', async (req, res) => {
             });
         }
 
+        // Extract PDf document name in a format that can be used to 
+        // find where the spec starts
+        const documentName = extractDocumentName(extractedTextItems);
+
         // Combines lines based on their page and y-coordinate
         let combinedLines = combineLines(extractedTextItems);
+
         // Assigns column numbers to the combined lines
-        setColumns(combinedLines, 'US 9, 195,518 B1');
+        setColumns(combinedLines, documentName);
+
         // Assigns line numbers to the combined lines
         setLineNumbers(combinedLines);
 
         // Constructs the final extracted text string
-        extractedText = '';
+        let extractedText = '';
         combinedLines.forEach(pdfLine => {
             extractedText += `Page: ${pdfLine.page} Y: ${pdfLine.y} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: "${pdfLine.text}" \n`;
         });
 
+        const searchString = createSearchString(combinedLines);
+
+
         // Returns the extracted text as JSON
-        res.json({ text: extractedText });
+        res.json({ text: searchString });
 
     } catch (error) {
         // Logs the error and returns a 500 Internal Server Error response
