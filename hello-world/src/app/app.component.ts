@@ -5,6 +5,7 @@ import { HttpClient, HttpClientModule } from '@angular/common/http';
 
 interface PdfTextResponse {
   text: string;
+  searchResults: string;
 }
 
 @Component({
@@ -17,14 +18,17 @@ interface PdfTextResponse {
 export class AppComponent {
   title = 'PDF Text Extractor';
   pdfUrl = ''; // The URL of the PDF to extract text from
+  searchString = ''; // The string to search for in the PDF
   extractedText = ''; // The text extracted from the PDF
+  searchResults = '';
 
   constructor(private http: HttpClient) { }
 
   extractPdfText() {
-    this.http.post<PdfTextResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/extract-pdf-text', { url: this.pdfUrl })
+    this.http.post<PdfTextResponse>('https://shiny-fortnight-jjr5jp7jjjvxhqvq4-3000.app.github.dev/extract-pdf-text', { url: this.pdfUrl, searchString: this.searchString })
       .subscribe(response => {
         this.extractedText = response.text;
+        this.searchResults = response.searchResults;
       }, error => {
         console.error('Error extracting PDF text:', error);
       });

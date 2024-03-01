@@ -8,14 +8,14 @@
  * @returns {Array} An array of arrays containing the matched PDFs.
  */
 function searchPDF(searchablePDF, searchString) {
-    let searchStringTokens = searchString.toLowerCase().split(' ');
+    let searchStringTokens = searchString.toLowerCase().trim().split(/\s+/);
     let searchResults = [];
 
     for (var ii = 0; ii < searchablePDF.length; ii++) {
         let foundTokenCounter = 0;
         let foundTokens = [];
         for (var jj = 0; jj < searchStringTokens.length; jj++) {
-            if (searchStringTokens[jj] == searchablePDF[ii].text) {
+            if (searchStringTokens[jj].trim() == searchablePDF[ii].text) {
                 foundTokenCounter++;
                 foundTokens.push(searchablePDF[ii]);
                 ii++;
@@ -23,7 +23,6 @@ function searchPDF(searchablePDF, searchString) {
         }
 
         if (foundTokenCounter == searchStringTokens.length) {
-            console.log(foundTokens);
             searchResults.push(foundTokens);
         }
     }

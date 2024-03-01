@@ -17,9 +17,11 @@ app.use(express.json());
 app.post('/extract-pdf-text', async (req, res) => {
     // Extracts the PDF URL from the request body
     const pdfUrl = req.body.url;
+    const searchString = req.body.searchString;
+
 
     // Logs the incoming request to the console
-    console.log("Incoming call to extract-pdf-text from: " + pdfUrl);
+    console.log("Incoming call to extract-pdf-text for: " + pdfUrl);
 
     // Checks if the PDF URL is provided, returns 400 Bad Request if not
     if (!pdfUrl) {
@@ -73,6 +75,7 @@ app.post('/extract-pdf-text', async (req, res) => {
         // find where the spec starts
         const documentName = pdfSearch.extractDocumentNumber(numberedPDFTextItems);
         console.log('documentName' + " : " + documentName);
+        console.log("Search string: " + searchString);
 
         // Combines lines based on their page and y-coordinate
         let combinedPDFLines = pdfSearch.combinePDFLines(numberedPDFTextItems);
@@ -86,16 +89,21 @@ app.post('/extract-pdf-text', async (req, res) => {
         // Constructs the final extracted text string
         let numberedPDFText = '';
         combinedPDFLines.forEach(pdfLine => {
-            numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: "${pdfLine.text}" \n`;
+            numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: ${pdfLine.text} \n`;
         });
 
         const searchablePDF = pdfSearch.createSearchablePDF(combinedPDFLines);
 
-        pdfSearch.searchPDF(searchablePDF, 'According to a method and a system described herein, at least one virtual machine (VM) is scanned. The method stores');
-
-
+        let results = pdfSearch.searchPDF(searchablePDF, searchString);
+        let allSearchResults = '';
+        results.forEach(result => {
+            result.forEach(location => {
+                allSearchResults += `Column: ${location.column} Line: ${location.line} Text: ${location.text} \n`;
+            });
+            allSearchResults += '*********************************************************************************\n';
+        })
         // Returns the extracted text as JSON
-        res.json({ text: numberedPDFText });
+        res.json({ text: numberedPDFText, searchResults: allSearchResults });
 
     } catch (error) {
         // Logs the error and returns a 500 Internal Server Error response
