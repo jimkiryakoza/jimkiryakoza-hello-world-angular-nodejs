@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 const port = 3000; // Example port
 const cors = require('cors');
-const { combineLines, setColumns, setLineNumbers, createSearchString, extractDocumentName } = require('./pdfSearch');
+const pdfSearch = require('./pdfSearch');
 
 // Setup CORS options
 const corsOptions = {
@@ -43,7 +43,7 @@ app.post('/extract-pdf-text', async (req, res) => {
 
         // Initializes variables for processing the PDF
         const numPages = pdfDocument.numPages;
-        let extractedTextItems = []; // Array to store extracted text items
+        let numberedPDFTextItems = []; // Array to store extracted text items
 
         // Iterates over each page of the PDF to extract text
         for (let i = 1; i <= numPages; i++) {
@@ -59,7 +59,7 @@ app.post('/extract-pdf-text', async (req, res) => {
                 const y = parseFloat(transform[5]).toFixed(2);
 
                 // Creates an object for each text item with its properties
-                extractedTextItems.push({
+                numberedPDFTextItems.push({
                     page: i,
                     y: y,
                     text: item.str,
@@ -71,28 +71,31 @@ app.post('/extract-pdf-text', async (req, res) => {
 
         // Extract PDf document name in a format that can be used to 
         // find where the spec starts
-        const documentName = extractDocumentName(extractedTextItems);
+        const documentName = pdfSearch.extractDocumentNumber(numberedPDFTextItems);
+        console.log('documentName' + " : " + documentName);
 
         // Combines lines based on their page and y-coordinate
-        let combinedLines = combineLines(extractedTextItems);
+        let combinedPDFLines = pdfSearch.combinePDFLines(numberedPDFTextItems);
 
         // Assigns column numbers to the combined lines
-        setColumns(combinedLines, documentName);
+        pdfSearch.setColumnNumbers(combinedPDFLines, documentName);
 
         // Assigns line numbers to the combined lines
-        setLineNumbers(combinedLines);
+        pdfSearch.setLineNumbers(combinedPDFLines);
 
         // Constructs the final extracted text string
-        let extractedText = '';
-        combinedLines.forEach(pdfLine => {
-            extractedText += `Page: ${pdfLine.page} Y: ${pdfLine.y} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: "${pdfLine.text}" \n`;
+        let numberedPDFText = '';
+        combinedPDFLines.forEach(pdfLine => {
+            numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: "${pdfLine.text}" \n`;
         });
 
-        const searchString = createSearchString(combinedLines);
+        const searchablePDF = pdfSearch.createSearchablePDF(combinedPDFLines);
+
+        pdfSearch.searchPDF(searchablePDF, 'According to a method and a system described herein, at least one virtual machine (VM) is scanned. The method stores');
 
 
         // Returns the extracted text as JSON
-        res.json({ text: searchString });
+        res.json({ text: numberedPDFText });
 
     } catch (error) {
         // Logs the error and returns a 500 Internal Server Error response
