@@ -1,41 +1,151 @@
-/**
- * Searches through a list of searchable PDFs for a given search string.
- * It tokenizes the search string and compares each token against the text of each PDF.
- * If all tokens are found within a single PDF, the PDF is considered a match and added to the search results.
- *
- * @param {Array} searchablePDF - An array of PDF objects with a 'text' property.
- * @param {string} searchString - The search string to find within the PDFs.
- * @returns {Array} An array of arrays containing the matched PDFs.
- */
-function searchPDF(searchablePDF, searchString) {
-    let searchStringTokens = searchString.toLowerCase().trim().split(/\s+/);
-    let searchResults = [];
+async function createSearchablePDF(pdfUrl) {
+    let combinedPDFLines = (await getPDFTextAndMetadata(pdfUrl));
 
+    let searchAblePDF = [];
+    combinedPDFLines.forEach(item => {
+        // Split the text into words
+        const words = item.text.split(' ');
+
+        // For each word, create a new item object and push it to the searchAblePDF array
+        words.forEach(word => {
+            searchAblePDF.push({
+                column: item.column,
+                line: item.line,
+                text: word.toLowerCase().trim(),
+            });
+        });
+    });
+
+    return [searchAblePDF, combinedPDFLines];
+}
+
+function searchPDF(searchablePDF, searchString) {
+    const searchStringTokens = searchString.toLowerCase().split(/\s+/);
+    const numSearchTokens = searchStringTokens.length;
+
+    let searchResults = [];
     for (var ii = 0; ii < searchablePDF.length; ii++) {
-        let foundTokenCounter = 0;
-        let foundTokens = [];
-        for (var jj = 0; jj < searchStringTokens.length; jj++) {
-            if (searchStringTokens[jj].trim() == searchablePDF[ii].text) {
-                foundTokenCounter++;
-                foundTokens.push(searchablePDF[ii]);
-                ii++;
+
+        if (searchablePDF[ii].column > 0) {
+            let foundTokenCounter = 0;
+            let foundTokens = [];
+            for (var jj = 0; jj < numSearchTokens; jj++) {
+                if (levenshteinDistance(searchStringTokens[jj].trim(), searchablePDF[ii].text) < 2) {
+                    foundTokenCounter++;
+                    foundTokens.push(searchablePDF[ii]);
+                    ii++;
+                } else {
+                    break;
+                }
+            }
+            if (foundTokenCounter == numSearchTokens) {
+                searchResults.push(foundTokens);
             }
         }
+    }
+    return searchResults;
+}
 
-        if (foundTokenCounter == searchStringTokens.length) {
-            searchResults.push(foundTokens);
+
+function levenshteinDistance(a, b) {
+    const matrix = [];
+
+    // Ensure that a is the shorter string.
+    if (a.length > b.length) {
+        [a, b] = [b, a];
+    }
+
+    // Initialize the first row of the matrix.
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+
+    // Initialize the first column of the matrix.
+    for (let i = 1; i <= a.length; i++) {
+        matrix[0][i] = i;
+    }
+
+    // Populate the matrix.
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) === a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1], // substitution
+                    matrix[i][j - 1],     // insertion
+                    matrix[i - 1][j]      // deletion
+                ) + 1;
+            }
         }
     }
 
-    return searchResults;
-
+    return matrix[b.length][a.length];
 }
 
-/**
- * Extracts the document name from a list of text items.
- * @param {Array} extractedTextItems - An array of objects with text items.
- * @returns {string} The document name found after 'Patent No.:'.
- */
+async function extractPDFTextFromUrl(pdfUrl) {
+    // Dynamically imports node-fetch to fetch the PDF
+    const fetch = (await import('node-fetch')).default;
+
+    // Dynamically imports pdfjs-dist to handle PDF operations
+    const pdfjsLib = await import('pdfjs-dist');
+
+    // Fetches the PDF data from the provided URL
+    const response = await fetch(pdfUrl);
+    const pdfData = await response.arrayBuffer();
+
+    // Loads the PDF document using pdfjs-dist
+    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+    const pdfDocument = await loadingTask.promise;
+
+    // Return the pdfDocument or any other relevant data
+    return pdfDocument;
+}
+
+async function getPDFTextAndMetadata(pdfUrl) {
+    let pdfDocument = (await extractPDFTextFromUrl(pdfUrl));
+
+    const numPages = pdfDocument.numPages;
+    let pdfTextWithMetadata = []; // Array to store extracted text items
+
+    // Iterates over each page of the PDF to extract text
+    for (let i = 1; i <= numPages; i++) {
+        const page = await pdfDocument.getPage(i);
+        const content = await page.getTextContent();
+
+        // Processes each text item on the page
+        content.items.forEach(item => {
+            const transform = item.transform;
+
+            // Extracts and formats the x and y coordinates
+            const x = parseFloat(transform[4]).toFixed(2);
+            const y = parseFloat(transform[5]).toFixed(2);
+
+            // Creates an object for each text item with its properties
+            pdfTextWithMetadata.push({
+                page: i,
+                x: x,
+                y: y,
+                text: item.str,
+                line: 0,
+                column: 0
+            });
+        });
+    }
+
+    const documentName = extractDocumentNumber(pdfTextWithMetadata);
+    console.log('documentName' + " : " + documentName);
+
+    // Some lines are split into multiple entries, combine them
+    let combinedPDFLines = combinePDFLines(pdfTextWithMetadata);
+
+    // Add column and line numbers to the combined lines
+    setColumnNumbers(combinedPDFLines, documentName);
+    setLineNumbers(combinedPDFLines);
+
+    return combinedPDFLines;
+}
+
 function extractDocumentNumber(extractedTextItems) {
     let document = '';
     for (let ii = 0; ii < extractedTextItems.length; ii++) {
@@ -47,41 +157,7 @@ function extractDocumentNumber(extractedTextItems) {
     return document;
 }
 
-/**
- * Transforms an array of PDF lines into a searchable format by splitting each line into individual words.
- * Each word is then encapsulated into an object containing its position (column and line) and the word itself in lowercase.
- *
- * @param {Array} combinedPDFLines - An array of objects representing PDF lines, each with a 'text' property.
- * @returns {Array} An array of objects where each object represents a word from the PDF, with properties for column, line, and text.
- */
-function createSearchablePDF(combinedPDFLines) {
-    let newItems = [];
 
-    combinedPDFLines.forEach(item => {
-        // Split the text into words
-        const words = item.text.split(' ');
-
-        // For each word, create a new item object and push it to the newItems array
-        words.forEach(word => {
-            newItems.push({
-                column: item.column,
-                line: item.line,
-                text: word.toLowerCase(),
-            });
-        });
-    });
-
-    return newItems;
-}
-
-/**
- * Assigns line numbers to combinedLines based on their y-coordinate and column value.
- * This function iterates through combinedLines, incrementing the line number for each line
- * that has a column value not equal to 0 and whose y-coordinate is less than 712.00.
- * It also resets the line number to 0 for lines where the column value is 0.
- *
- * @param {Array} combinedLines - An array of objects, each representing a line with properties for page, x, y, column, and text.
- */
 function setLineNumbers(combinedLines) {
     let lineNumber = 0;
     for (let index = 1; index < combinedLines.length; index++) {
@@ -97,68 +173,44 @@ function setLineNumbers(combinedLines) {
     }
 }
 
-/**
- * Assigns column numbers to lines based on their position within a document.
- *
- * This function iterates over the combinedLines array, starting from the line after the description separator.
- * It assigns column numbers to each line based on their page number and y-coordinate, incrementing the
- * column number for each new page or when the y-coordinate increases significantly (more than 12 units).
- * This is particularly useful for documents where columns are distinct on different pages or when the y-coordinate
- * indicates a new column.
- *
- * @param {Array} combinedLines - An array of objects, each representing a line with properties for page, x, y, and text.
- * @param {string} documentName - A string used to identify the start of the main content in the document.
- */
 function setColumnNumbers(combinedLines, documentName) {
 
-    let descriptionStart = -1;
+    const regex = /Sheet\s+1\s+of\s+(\d+)/;
+    let columnsStartPage = -1;
     for (var ii = 0; ii < combinedLines.length; ii++) {
-        if (combinedLines[ii].text.replaceAll(' ', '') == documentName) {
-            descriptionStart = ii;
+        const match = combinedLines[ii].text.match(regex);
+        if (match) {
+            columnsStartPage = combinedLines[ii].page + parseInt(match[1], 10);
             break;
         }
     }
+    let columnsStart = 0;
+    for (let ii = 0; ii < combinedLines.length; ii++) {
+        if (combinedLines[ii].page == columnsStartPage) {
+            columnsStart = ii + 2;
+            break;
+        }
+    }
+    let pageColumn = 1;  // columns within a page
+    let documentColumn = 1; //columns within a document
+    for (let ii = columnsStart; ii < combinedLines.length; ii++) {
 
-    console.log('descriptionStart: ' + descriptionStart);
-
-    let pageColumn = 1;
-    let documentColumn = 1;
-
-    for (let i = descriptionStart + 1; i < combinedLines.length; i++) {
-        // Check if i - 1 is a valid index before accessing combinedLines[i - 1]
-        if (i - 1 >= 0) {
-            if (combinedLines[i].page === combinedLines[i - 1].page) {
-                const currentY = parseFloat(combinedLines[i].y);
-                const previousY = parseFloat(combinedLines[i - 1].y);
-
-                if (currentY > previousY) {
-                    pageColumn++;
-                    if (pageColumn === 1 || pageColumn === 3) {
-                        documentColumn++;
-                    }
-                }
-
-                if (pageColumn === 1 || pageColumn === 3) {
-                    combinedLines[i].column = documentColumn;
-                }
-            } else {
-                pageColumn = 1;
+        if (combinedLines[ii].page != combinedLines[ii - 1].page) {
+            documentColumn++;
+            pageColumn = 1;
+        } else if (parseFloat(combinedLines[ii].y) > parseFloat(combinedLines[ii - 1].y)) {
+            if (pageColumn == 1) {
                 documentColumn++;
             }
+            pageColumn++;
+        }
+
+        if ((pageColumn == 1) || (pageColumn == 3)) {
+            combinedLines[ii].column = documentColumn;
         }
     }
 }
-/**
- * Combines text lines based on their page and y-coordinate to form a single line for each unique key.
- *
- * This function iterates over the extracted text items, combining their text based on the combination
- * of their page number and y-coordinate. It uses a Map to efficiently group lines by their unique key,
- * which is a combination of page and y-coordinate. The function then transforms this Map into an array
- * of combined lines, each represented as an object with properties for page, x, y, and text.
- *
- * @param {Array} extractedTextItems - An array of objects, each containing properties for page, x, y, and text.
- * @returns {Array} An array of combined lines, where each line is represented as an object with properties for page, x, y, and text.
- */
+
 function combinePDFLines(extractedTextItems) {
     let combinedLines = [];
     let combinedLine = extractedTextItems[0].text;
@@ -194,10 +246,6 @@ function combinePDFLines(extractedTextItems) {
 }
 
 module.exports = {
-    extractDocumentNumber,
     createSearchablePDF,
-    setLineNumbers,
-    setColumnNumbers,
-    combinePDFLines,
     searchPDF
 };
