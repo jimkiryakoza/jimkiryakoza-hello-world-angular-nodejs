@@ -8,11 +8,13 @@ async function createSearchablePDF(pdfUrl) {
 
         // For each word, create a new item object and push it to the searchAblePDF array
         words.forEach(word => {
-            searchAblePDF.push({
-                column: item.column,
-                line: item.line,
-                text: word.toLowerCase().trim(),
-            });
+            if (item.column != 0) {
+                searchAblePDF.push({
+                    column: item.column,
+                    line: item.line,
+                    text: word.toLowerCase().trim(),
+                });
+            }
         });
     });
 
@@ -20,32 +22,45 @@ async function createSearchablePDF(pdfUrl) {
 }
 
 function searchPDF(searchablePDF, searchString) {
-    const searchStringTokens = searchString.toLowerCase().split(/\s+/);
+    const searchStringTokens = searchString.trim().toLowerCase().split(/\s+/);
     const numSearchTokens = searchStringTokens.length;
 
     let searchResults = [];
-    for (var ii = 0; ii < searchablePDF.length; ii++) {
+    for (let i = 0; i <= searchablePDF.length - searchStringTokens.length; i++) {
+        // Assume the sequence matches until proven otherwise
+        let sequenceMatches = true;
 
-        if (searchablePDF[ii].column > 0) {
-            let foundTokenCounter = 0;
-            let foundTokens = [];
-            for (var jj = 0; jj < numSearchTokens; jj++) {
-                if (levenshteinDistance(searchStringTokens[jj].trim(), searchablePDF[ii].text) < 2) {
-                    foundTokenCounter++;
-                    foundTokens.push(searchablePDF[ii]);
-                    ii++;
-                } else {
-                    break;
+        // Check if the sequence starting at the current element matches searchStringTokens
+        let foundTokens = [];
+        for (let j = 0; j < numSearchTokens; j++) {
+
+            if (levenshteinDistance(searchablePDF[i + j].text, searchStringTokens[j]) < 3) {
+                foundTokens.push(searchablePDF[i + j]);
+                continue;
+            }
+
+            if ((searchablePDF[i + j + 1] != undefined) && (searchablePDF[i + j].line != searchablePDF[i + j + 1].line)) {
+                let hyphenatedWord = searchablePDF[i + j].text + searchablePDF[i + j + 1].text;
+                if (levenshteinDistance(hyphenatedWord, searchStringTokens[j]) < 3) {
+                    foundTokens.push(searchablePDF[i + j]);
+                    i++;
+                    continue;
                 }
             }
-            if (foundTokenCounter == numSearchTokens) {
-                searchResults.push(foundTokens);
-            }
+
+            sequenceMatches = false;
+            break;
+        }
+
+        // If the sequence matches, print the matching sequence
+        if (sequenceMatches) {
+            searchResults.push(foundTokens);
         }
     }
+
+
     return searchResults;
 }
-
 
 function levenshteinDistance(a, b) {
     const matrix = [];
