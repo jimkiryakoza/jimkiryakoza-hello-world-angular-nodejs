@@ -122,54 +122,52 @@ async function getPDFTextAndMetadata(pdfUrl) {
 
     const numPages = pdfDocument.numPages;
     let pdfTextWithMetadata = []; // Array to store extracted text items
-
     // Iterates over each page of the PDF to extract text
     for (let i = 1; i <= numPages; i++) {
         const page = await pdfDocument.getPage(i);
         const content = await page.getTextContent();
 
-        // Processes each text item on the page
-        content.items.forEach(item => {
-            const transform = item.transform;
-
-            // Extracts and formats the x and y coordinates
-            const x = parseFloat(transform[4]).toFixed(2);
-            const y = parseFloat(transform[5]).toFixed(2);
-
-            // Creates an object for each text item with its properties
+        // Check if the page is blank (has no text items)
+        if (content.items.length === 0) {
+            // If the page is blank, create a special entry for it
             pdfTextWithMetadata.push({
                 page: i,
-                x: x,
-                y: y,
-                text: item.str,
+                x: null,
+                y: null,
+                text: "This page is intentionally left blank.",
                 line: 0,
                 column: 0
             });
-        });
-    }
+        } else {
+            // Processes each text item on the page if it is not blank
+            content.items.forEach(item => {
+                const transform = item.transform;
 
-    const documentName = extractDocumentNumber(pdfTextWithMetadata);
-    console.log('documentName' + " : " + documentName);
+                // Extracts and formats the x and y coordinates
+                const x = parseFloat(transform[4]).toFixed(2);
+                const y = parseFloat(transform[5]).toFixed(2);
+
+                // Creates an object for each text item with its properties
+                pdfTextWithMetadata.push({
+                    page: i,
+                    x: x,
+                    y: y,
+                    text: item.str,
+                    line: 0,
+                    column: 0
+                });
+            });
+        }
+    }
 
     // Some lines are split into multiple entries, combine them
     let combinedPDFLines = combinePDFLines(pdfTextWithMetadata);
 
     // Add column and line numbers to the combined lines
-    setColumnNumbers(combinedPDFLines, documentName);
+    setColumnNumbers(combinedPDFLines);
     setLineNumbers(combinedPDFLines);
 
     return combinedPDFLines;
-}
-
-function extractDocumentNumber(extractedTextItems) {
-    let document = '';
-    for (let ii = 0; ii < extractedTextItems.length; ii++) {
-        if (extractedTextItems[ii].text.includes('Patent No.:')) {
-            document = extractedTextItems[ii + 2].text.replaceAll(' ', '');
-            break;
-        }
-    }
-    return document;
 }
 
 
@@ -177,11 +175,17 @@ function setLineNumbers(combinedLines) {
     let lineNumber = 0;
     for (let index = 1; index < combinedLines.length; index++) {
         if (combinedLines[index].column !== 0) {
+            let lineIncrement = 0;
+
             if (combinedLines[index].y < 712.00) {
-                let lineIncrement = Math.trunc(combinedLines[index - 1].y) - Math.trunc(combinedLines[index].y) > 12 ? 2 : 1;
-                combinedLines[index].line = lineNumber + lineIncrement;
-                lineNumber += lineIncrement;
+                if (combinedLines[index - 1].y - combinedLines[index].y > 12) {
+                    lineIncrement = 2;
+                } else {
+                    lineIncrement = 1;
+                }
             }
+
+            combinedLines[index].line = lineNumber += lineIncrement;
         } else {
             lineNumber = 0;
         }
@@ -191,39 +195,47 @@ function setLineNumbers(combinedLines) {
 function setColumnNumbers(combinedLines, documentName) {
 
     const regex = /Sheet\s+1\s+of\s+(\d+)/;
-    let columnsStartPage = -1;
+    let specStartPage = -1;
+    let figuresStartLine = -1;
     for (var ii = 0; ii < combinedLines.length; ii++) {
         const match = combinedLines[ii].text.match(regex);
         if (match) {
-            columnsStartPage = combinedLines[ii].page + parseInt(match[1], 10);
+            specStartPage = combinedLines[ii].page + parseInt(match[1], 10);
+            figuresStartLine = ii;
             break;
         }
     }
-    let columnsStart = 0;
-    for (let ii = 0; ii < combinedLines.length; ii++) {
-        if (combinedLines[ii].page == columnsStartPage) {
-            columnsStart = ii + 2;
+
+    let specStartLine = -1;
+    for (var ii = figuresStartLine; ii < combinedLines.length; ii++) {
+        if (combinedLines[ii].page == specStartPage) {
+            specStartLine = ii;
             break;
         }
     }
-    let pageColumn = 1;  // columns within a page
-    let documentColumn = 1; //columns within a document
-    for (let ii = columnsStart; ii < combinedLines.length; ii++) {
 
-        if (combinedLines[ii].page != combinedLines[ii - 1].page) {
-            documentColumn++;
-            pageColumn = 1;
-        } else if (parseFloat(combinedLines[ii].y) > parseFloat(combinedLines[ii - 1].y)) {
-            if (pageColumn == 1) {
-                documentColumn++;
-            }
-            pageColumn++;
+    let columnNumber = 1;
+    let currentPage = combinedLines[specStartLine].page;
+    for (var ii = specStartLine; ii < combinedLines.length; ii++) {
+
+        if (combinedLines[ii].page != currentPage) {
+            currentPage = combinedLines[ii].page;
+            columnNumber += 2;
+            continue;
         }
 
-        if ((pageColumn == 1) || (pageColumn == 3)) {
-            combinedLines[ii].column = documentColumn;
+        if (combinedLines[ii].y > 710) {
+            continue;
         }
+
+        if (combinedLines[ii].x < 298) {
+            combinedLines[ii].column = columnNumber;
+        } else {
+            combinedLines[ii].column = columnNumber + 1;
+        }
+
     }
+
 }
 
 function combinePDFLines(extractedTextItems) {

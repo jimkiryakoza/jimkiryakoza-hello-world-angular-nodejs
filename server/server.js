@@ -23,9 +23,7 @@ app.post('/extract-pdf-text', async (req, res) => {
         const [searchablePDF, combinedPDFLines] = (await pdfSearch.createSearchablePDF(pdfUrl));
         let numberedPDFText = '';
         combinedPDFLines.forEach(pdfLine => {
-            if (pdfLine.column != 0) {
-                numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} X: ${pdfLine.x} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: ${pdfLine.text} \n`;
-            }
+            numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} X: ${pdfLine.x} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: ${pdfLine.text} \n`;
         });
 
         // Logs the incoming request to the console
