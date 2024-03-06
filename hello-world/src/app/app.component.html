@@ -1,7 +1,7 @@
 <div>
     <p>PDF URL: <input [(ngModel)]="pdfUrl" class="pdf-url" type="text" placeholder="Enter PDF URL here"></p>
-    <p>Search Text: <input [(ngModel)]="searchString" class="search-string" type="text"
-            placeholder="Enter search string here"></p>
+    <p>Search Text: <textarea [(ngModel)]="searchString" class="search-string" placeholder="Enter search string here"
+            style="height: 100px; width: 1000px;"></textarea></p>
     <button (click)="extractPdfText()">Extract Text</button>
 </div>
 <div>

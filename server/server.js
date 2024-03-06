@@ -6,7 +6,7 @@ const pdfSearch = require('./pdfSearch');
 
 // Setup CORS options
 const corsOptions = {
-    origin: true
+    origin: true,
 };
 app.use(cors(corsOptions));
 
@@ -20,28 +20,27 @@ app.post('/extract-pdf-text', async (req, res) => {
     const searchString = req.body.searchString;
 
     try {
-        const [searchablePDF, combinedPDFLines] = (await pdfSearch.createSearchablePDF(pdfUrl));
+        const [searchablePDF, combinedPDFLines] = await pdfSearch.createSearchablePDF(pdfUrl);
         let numberedPDFText = '';
-        combinedPDFLines.forEach(pdfLine => {
+        combinedPDFLines.forEach((pdfLine) => {
             numberedPDFText += `Page: ${pdfLine.page} Y: ${pdfLine.y} X: ${pdfLine.x} Column: ${pdfLine.column}, Line: ${pdfLine.line}, Text: ${pdfLine.text} \n`;
         });
 
         // Logs the incoming request to the console
-        console.log("Incoming call to extract-pdf-text");
-        console.log("PDF Url: " + pdfUrl);
-        console.log("Search string: " + searchString);
+        console.log('Incoming call to extract-pdf-text');
+        console.log('PDF Url: ' + pdfUrl);
+        console.log('Search string: ' + searchString);
 
         let results = pdfSearch.searchPDF(searchablePDF, searchString);
         let allSearchResults = '';
-        results.forEach(result => {
-            result.forEach(location => {
+        results.forEach((result) => {
+            result.forEach((location) => {
                 allSearchResults += `Column: ${location.column} Line: ${location.line} Text: ${location.text} \n`;
             });
             allSearchResults += '*********************************************************************************\n';
-        })
+        });
 
         res.json({ text: numberedPDFText, searchResults: allSearchResults });
-
     } catch (error) {
         // Logs the error and returns a 500 Internal Server Error response
         console.error('Error extracting text:', error);
