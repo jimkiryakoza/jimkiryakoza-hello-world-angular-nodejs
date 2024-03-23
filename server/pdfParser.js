@@ -158,12 +158,10 @@ function splitPDFLines(combinedPDFText, log = false) {
 }
 
 function formatLines(pdfLines, log = false) {
-    // Initialize variables to track the current column and line number
-    let currentCol = null;
-    let lineNumber = 1;
 
     for (let i = 0; i < pdfLines.length; i++) {
         const line = pdfLines[i];
+
         // Clean up the text format
         line.text = line.text
             .trim()
@@ -172,6 +170,14 @@ function formatLines(pdfLines, log = false) {
             .replaceAll(" ' ", "'")
             .replaceAll(' -', '-')
             .replaceAll(' . ', '.');
+    }
+
+    // Initialize variables to track the current column and line number
+    const filteredPdfLines = pdfLines.filter((entry) => entry.text.trim().length > 0);
+    let currentCol = null;
+    let lineNumber = 1;
+    for (let i = 0; i < filteredPdfLines.length; i++) {
+        const line = filteredPdfLines[i];
 
         // Check if we've moved to a new column
         if (line.col !== currentCol) {
@@ -184,8 +190,8 @@ function formatLines(pdfLines, log = false) {
         line.lineNumber = lineNumber;
 
         // Only compare y values if there's a next entry in the list
-        if (i < pdfLines.length - 1) {
-            const nextLine = pdfLines[i + 1];
+        if (i < filteredPdfLines.length - 1) {
+            const nextLine = filteredPdfLines[i + 1];
             // Increase the line number based on the difference in y values
             if (Math.abs(line.y - nextLine.y) < 12) {
                 lineNumber += 1;
@@ -193,15 +199,19 @@ function formatLines(pdfLines, log = false) {
                 lineNumber += 2;
             }
         }
+    }
 
-        // Log the line details if logging is enabled
-        if (log) {
+    if (log) {
+        filteredPdfLines.forEach((line) => {
             console.log(
                 `Page: ${line.page} Col: ${line.col} Line: ${line.lineNumber
                 } at (${line.y.toFixed(2)}, ${line.x.toFixed(2)} ${line.width.toFixed(2)})\t[${line.text}]`,
             );
-        }
+        });
     }
+
+    // Filter out entries where text is all blanks or empty
+    return filteredPdfLines;
 }
 
 async function getPDF(pdfUrl, specStartPage) {
@@ -209,8 +219,8 @@ async function getPDF(pdfUrl, specStartPage) {
     let pdfText = await extractTextFromPDF(pdfDocument, specStartPage, false);
     let combinedPDFText = combinePDFText(pdfText, false);
     let splitLines = splitPDFLines(combinedPDFText, false);
-    let finalLines = combinePDFText(splitLines, false);
-    formatLines(finalLines, true);
+    let combinedPDFText2 = combinePDFText(splitLines, false);
+    const finalLines = formatLines(combinedPDFText2, true);
 
     return finalLines;
 }

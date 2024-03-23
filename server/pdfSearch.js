@@ -1,3 +1,4 @@
+const { getPDF } = require('./pdfParser');
 /**
  * Asynchronously creates a searchable PDF by extracting text and metadata from a given PDF URL.
  * This function splits the text into individual words and creates a searchable PDF array where each word is an item with its column, line, and text.
@@ -14,8 +15,8 @@
  *   console.log(combinedPDFLines); // Original PDF text and metadata
  * });
  */
-async function createSearchablePDF(pdfUrl) {
-    let combinedPDFLines = await getPDFTextAndMetadata(pdfUrl);
+async function createSearchablePDF(pdfUrl, specStartPage) {
+    let combinedPDFLines = await getPDF(pdfUrl, specStartPage);
 
     let searchAblePDF = [];
     combinedPDFLines.forEach((item) => {
@@ -142,36 +143,6 @@ function levenshteinDistance(a, b) {
     }
 
     return matrix[b.length][a.length];
-}
-
-/*
-This JavaScript function dynamically imports the 'node-fetch' and 'pdfjs-dist' libraries to fetch a PDF from a given URL and load it using the PDF.js library. It then returns the loaded PDF document.
- 
-1. It dynamically imports 'node-fetch' to fetch the PDF data from the provided URL.
-2. It dynamically imports 'pdfjs-dist' to handle operations on the fetched PDF.
-3. It fetches the PDF data as an ArrayBuffer using 'node-fetch'.
-4. It loads the PDF document using the fetched data with 'pdfjs-dist', creating a loading task.
-5. It waits for the loading task to complete and then returns the loaded PDF document.
- 
-This function is designed to be used in an asynchronous context, as it relies on awaiting the import of libraries and the completion of the PDF loading task.
-*/
-async function extractPDFTextFromUrl(pdfUrl) {
-    // Dynamically imports node-fetch to fetch the PDF
-    const fetch = (await import('node-fetch')).default;
-
-    // Dynamically imports pdfjs-dist to handle PDF operations
-    const pdfjsLib = await import('pdfjs-dist');
-
-    // Fetches the PDF data from the provided URL
-    const response = await fetch(pdfUrl);
-    const pdfData = await response.arrayBuffer();
-
-    // Loads the PDF document using pdfjs-dist
-    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
-    const pdfDocument = await loadingTask.promise;
-
-    // Return the pdfDocument or any other relevant data
-    return pdfDocument;
 }
 
 module.exports = {
