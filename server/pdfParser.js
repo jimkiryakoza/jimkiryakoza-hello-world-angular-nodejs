@@ -1,9 +1,8 @@
-async function extractTextFromPDF(pdfPath, log = false) {
-    const pdfjsLib = await import('pdfjs-dist');
+async function extractTextFromPDF(pdfDocument, startPage, log = false) {
     let pdfText = [];
     try {
-        const pdfDocument = await pdfjsLib.getDocument(pdfPath).promise;
         for (let pageNum = 1; pageNum <= pdfDocument.numPages; pageNum++) {
+            if (pageNum < startPage) continue;
             const page = await pdfDocument.getPage(pageNum);
             const textContent = await page.getTextContent();
 
@@ -109,6 +108,7 @@ function splitPDFLines(combinedPDFText, log = false) {
                     col: pageCol,
                 });
             }
+
             if (textAfterMatch.trim().length > 0) {
                 splitLines.push({
                     page: line.page,
@@ -119,6 +119,7 @@ function splitPDFLines(combinedPDFText, log = false) {
                     col: pageCol + 1,
                 });
             }
+
             // Log after adding the lines to splitLines
             if (log) {
                 console.log(`[${line.text}]`);
@@ -171,6 +172,7 @@ function formatLines(pdfLines, log = false) {
             .replaceAll(" ' ", "'")
             .replaceAll(' -', '-')
             .replaceAll(' . ', '.');
+
         // Check if we've moved to a new column
         if (line.col !== currentCol) {
             // Reset the line number for a new column
@@ -202,15 +204,38 @@ function formatLines(pdfLines, log = false) {
     }
 }
 
-async function main() {
-    //const pdfPath = __dirname + "/US11223601.pdf";
-    //const pdfPath = __dirname + "/temp.pdf";
-    const pdfPath = __dirname + '/tempold.pdf';
-    let pdfText = await extractTextFromPDF(pdfPath, false);
+async function getPDF(pdfUrl, specStartPage) {
+    const pdfDocument = await extractPDFTextFromUrl(pdfUrl);
+    let pdfText = await extractTextFromPDF(pdfDocument, specStartPage, false);
     let combinedPDFText = combinePDFText(pdfText, false);
     let splitLines = splitPDFLines(combinedPDFText, false);
     let finalLines = combinePDFText(splitLines, false);
     formatLines(finalLines, true);
+
+    return finalLines;
 }
 
-main();
+async function extractPDFTextFromUrl(pdfUrl) {
+    // Dynamically imports node-fetch to fetch the PDF
+    const fetch = (await import('node-fetch')).default;
+
+    // Dynamically imports pdfjs-dist to handle PDF operations
+    const pdfjsLib = await import('pdfjs-dist');
+
+    // Fetches the PDF data from the provided URL
+    const response = await fetch(pdfUrl);
+    const pdfData = await response.arrayBuffer();
+
+    // Loads the PDF document using pdfjs-dist
+    const loadingTask = pdfjsLib.getDocument({ data: pdfData });
+    const pdfDocument = await loadingTask.promise;
+
+    // Return the pdfDocument or any other relevant data
+    return pdfDocument;
+}
+
+getPDF('https://patentimages.storage.googleapis.com/ea/85/52/ffc08f7c0d68b7/US9740988.pdf', 20);
+
+module.exports = {
+    getPDF,
+};
