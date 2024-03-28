@@ -1,12 +1,31 @@
 <div>
-    <p>PDF URL: <input [(ngModel)]="pdfUrl" class="pdf-url" type="text" placeholder="Enter PDF URL here"></p>
-    <p>Search Text: <textarea [(ngModel)]="searchString" class="search-string" placeholder="Enter search string here"
-            style="height: 100px; width: 1000px;"></textarea></p>
-    <button (click)="extractPdfText()">Extract Text</button>
+  <p>
+    Document Number:
+    <input
+      [(ngModel)]="documentNumber"
+      class="document-number"
+      type="text"
+      placeholder="Enter document number here"
+    />
+  </p>
+  <p>
+    Search Text:
+    <textarea
+      [(ngModel)]="searchString"
+      class="search-string"
+      placeholder="Enter search string here"
+      style="height: 100px; width: 1000px"
+    ></textarea>
+  </p>
+  <button (click)="searchPdf()">Extract Text</button>
 </div>
 <div>
-    <p>Search Results:</p>
-    <p><textarea readonly class="search-results">{{ searchResults }}</textarea></p>
-    <p>Extracted Text:</p>
-    <p><textarea readonly class="extracted-text">{{ extractedText }}</textarea></p>
+  <p>Search Results:</p>
+  <p>
+    <textarea readonly class="search-results">{{ searchResults }}</textarea>
+  </p>
+  <p>Extracted Text:</p>
+  <p>
+    <textarea readonly class="extracted-text">{{ extractedText }}</textarea>
+  </p>
 </div>

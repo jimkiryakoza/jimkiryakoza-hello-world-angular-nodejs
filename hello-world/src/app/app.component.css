@@ -1,21 +1,21 @@
 .extracted-text {
-    width: 100%;
-    height: 500px;
-    resize: none;
+  width: 100%;
+  height: 500px;
+  resize: none;
 }
 
 .search-results {
-    width: 100%;
-    height: 250px;
-    resize: none;
+  width: 100%;
+  height: 250px;
+  resize: none;
 }
 
-.pdf-url {
-    width: 80%;
-    resize: none;
+.document-number {
+  width: 100px;
+  resize: none;
 }
 
 .search-string {
-    width: 50%;
-    resize: none;
+  width: 50%;
+  resize: none;
 }

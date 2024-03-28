@@ -1,21 +1,10 @@
+const cheerio = require('cheerio');
 const { getPDF } = require('./pdfParser')
-/**
- * Asynchronously creates a searchable PDF by extracting text and metadata from a given PDF URL.
- * This function splits the text into individual words and creates a searchable PDF array where each word is an item with its column, line, and text.
- * It filters out words from the first column (column 0) to avoid including headers or footers.
- *
- * @param {string} pdfUrl The URL of the PDF document to be processed.
- * @returns {Promise<Array>} A promise that resolves to an array containing two elements:
- *                           1. An array of objects representing the searchable PDF, where each object has properties for column, line, and text.
- *                           2. The original combined PDF lines including metadata.
- *
- * @example
- * createSearchablePDF('https://example.com/sample.pdf').then(([searchablePDF, combinedPDFLines]) => {
- *   console.log(searchablePDF); // Processed searchable PDF
- *   console.log(combinedPDFLines); // Original PDF text and metadata
- * });
- */
-async function createSearchablePDF(pdfUrl) {
+
+async function createSearchablePDF(documentNumber) {
+
+  const pdfUrl = await getPDFUrlFromDocNum(documentNumber);
+
   let combinedPDFLines = await getPDF(pdfUrl)
 
   let searchAblePDF = []
@@ -150,6 +139,86 @@ function levenshteinDistance(a, b) {
 
   return matrix[b.length][a.length]
 }
+
+/**
+ * Fetches the HTML content for a given URL.
+ * 
+ * @param {string} url - The URL of the web page to fetch.
+ * @returns {Promise<string>} A promise that resolves with the HTML content of the page.
+ */
+async function fetchHtmlContent(url) {
+  // Dynamically imports node-fetch to fetch the PDF
+  const fetch = (await import("node-fetch")).default;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch page: ${response.statusText}`);
+    }
+    return await response.text();
+  } catch (error) {
+    console.error('Error fetching HTML content:', error);
+    throw error;
+  }
+}
+
+/**
+ * Parses the HTML content of a web page to find the first URL that starts with https:// and ends with .pdf.
+ * 
+ * @param {string} html - The HTML content of the web page.
+ * @returns {string|null} The first matching PDF URL found, or null if none is found.
+ */
+function findPdfUrl(html) {
+  const $ = cheerio.load(html);
+  let pdfUrl = null;
+  $('a').each(function () {
+    const href = $(this).attr('href');
+    if (href && href.startsWith('https://') && href.endsWith('.pdf')) {
+      pdfUrl = href;
+      return false; // Break the loop once a match is found
+    }
+  });
+  return pdfUrl;
+}
+
+/**
+ * ****************************************************************
+ * Fetches the PDF URL for a patent document from Google Patents.
+ * ****************************************************************
+ * This function constructs a URL to access a specific patent document on Google Patents,
+ * fetches the HTML content of the page, and then searches for the first PDF URL within that content.
+ * 
+ * @param {string} documentNumber - The patent document number (excluding the "US" prefix).
+ * @returns {Promise<string|null>} A promise that resolves with the URL of the PDF document,
+ *                                 or null if no PDF link is found.
+ * 
+ * Usage Example:
+ * getPDFUrlFromDocNum('1234567').then((pdfUrl) => {
+ *   if (pdfUrl) {
+ *     console.log(`PDF URL: ${pdfUrl}`);
+ *   } else {
+ *     console.log('PDF URL not found.');
+ *   }
+ * });
+ * 
+ * Note: This function depends on the `fetchHtmlContent` and `findPdfUrl` functions
+ *       to respectively fetch the HTML content of a web page and to parse that content
+ *       for a specific URL pattern.
+ * ****************************************************************
+ */
+async function getPDFUrlFromDocNum(documentNumber) {
+  // Construct the URL for the Google Patents page for the given document number
+  const googlePageURL = `https://patents.google.com/patent/US${documentNumber}`;
+
+  // Fetch the HTML content of the Google Patents page
+  const googlePageHTML = await fetchHtmlContent(googlePageURL);
+
+  // Search the HTML content for the first PDF URL and return it
+  const pdfUrl = findPdfUrl(googlePageHTML);
+
+  return pdfUrl;
+}
+
 
 module.exports = {
   createSearchablePDF,
